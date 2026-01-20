@@ -144,7 +144,8 @@ if input_text:
     
     with c2:
         st.download_button("🌏 下載 .html (雙視對照)", full_html_file, "dual_view.html", mime="text/html")
-
+ 
     st.divider()
     st.header("雙視偵錯對照區")
+
     st.markdown(html_content, unsafe_allow_html=True)
