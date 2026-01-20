@@ -8,8 +8,7 @@ st.set_page_config(
     layout="wide",
 )
 
-# --- 2. CSS 美化 (這是雙視方塊的靈魂) ---
-# 必須放在這裡，網頁才會知道 .braille-box 長什麼樣子
+# --- 2. CSS 美化 ---
 st.markdown("""
 <style>
     .braille-container {
@@ -22,7 +21,6 @@ st.markdown("""
         border: 1px solid #e9ecef;
         line-height: 1.5;
     }
-    
     .braille-box {
         display: flex;
         flex-direction: column;
@@ -35,25 +33,20 @@ st.markdown("""
         min-width: 32px;
         margin-bottom: 5px;
     }
-
     .error-box {
         border: 2px solid #ff4b4b !important;
         background-color: #ffe6e6 !important;
     }
-    
     .char-top {
         font-size: 14px;
         color: #495057;
         margin-bottom: 2px;
         font-family: "Microsoft JhengHei", sans-serif;
     }
-    
     .braille-bottom {
         font-weight: bold;
         color: #000;
-        /* font-size 會由 Python 動態控制 */
     }
-
     .break-line {
         flex-basis: 100%;
         height: 0;
@@ -73,11 +66,9 @@ with st.sidebar:
     st.subheader("📝 我的詞庫 (即時修正)")
     st.info("格式：詞彙=點字 或 注音 例如：\nBoyan = ⠃⠕⠽⠁⠝\n快樂 = ㄎㄨㄞˋ ㄌㄜˋ")
     
-    # 預設範例
-    default_dict = "Boyan=⠃⠕⠽⠁⠝\n快樂=ㄎㄨㄞˋ ㄌㄜˋ\n冠軍=ㄍㄨㄢˋ ㄐㄩㄣ"
+    default_dict = "Boyan=⠠⠃⠕⠽⠁⠝\n快樂=ㄎㄨㄞˋ ㄌㄜˋ\n冠軍=ㄍㄨㄢˋ ㄐㄩㄣ"
     custom_dict_str = st.text_area("在此輸入自定義規則", value=default_dict, height=150)
     
-    # 解析使用者輸入的字典
     custom_rules = {}
     if custom_dict_str:
         for line in custom_dict_str.split('\n'):
@@ -86,6 +77,18 @@ with st.sidebar:
                 custom_rules[k.strip()] = v.strip()
 
     st.divider()
+    
+    # [新增] 英文標準切換
+    st.subheader("🔠 英文點字標準")
+    english_mode_option = st.radio(
+        "請選擇轉譯模式：",
+        ["UEB (統一英文點字)", "Traditional (傳統/舊版點字)"],
+        index=0,
+        help="UEB：括號使用 ⠐⠣ ⠐⠜，全大寫使用雙點。\n傳統：括號使用 ⠪ ⠕，大寫規則較簡單。"
+    )
+    # 將中文選項轉換為程式碼代號
+    english_mode = "UEB" if "UEB" in english_mode_option else "Traditional"
+
     st.subheader("📄 排版設定")
     chars_per_line = st.number_input("每行方數", min_value=10, max_value=60, value=32)
     font_size_px = st.slider("字體大小", 12, 36, 22)
@@ -95,25 +98,21 @@ st.title("麥西家正體中文字點字即時轉譯小麥麥")
 st.markdown("支援：全形轉半形、英文大小寫、即時破音字修正、雙重格式匯出")
 
 st.header("輸入文字")
-input_text = st.text_area("請在此貼上文章...", height=150, placeholder="例如：2023年味全龍勇奪總冠軍...")
+input_text = st.text_area("請在此貼上文章...", height=150, placeholder="例如：Boyan (WHIP: 1.20)...")
 
 if input_text:
-    # 1. 呼叫轉譯引擎 (傳入文字與自定義字典)
-    full_result, dual_data = braille_converter.text_to_braille(input_text, custom_rules)
+    # 傳入 english_mode
+    full_result, dual_data = braille_converter.text_to_braille(input_text, custom_rules, english_mode)
     
-    # 2. 顯示純點字結果
     st.subheader("點字輸出 ⠒")
     st.text_area("純點字", value=full_result, height=150)
     
-    # 下載按鈕區
     c1, c2 = st.columns([1, 1])
     with c1:
         st.download_button("📥 下載 .txt (印表機用)", full_result, "braille_output.txt")
     
-    # 3. 呼叫 HTML 產生器 (這就是剛剛您缺少的擺盤動作)
     html_content = braille_converter.generate_html_content(dual_data, chars_per_line, font_size_px)
     
-    # 為了解決下載 HTML 的需求，我們也準備一個完整的 HTML 檔案字串
     full_html_file = f"""
     <html>
     <head><meta charset="utf-8"><style>
@@ -131,9 +130,6 @@ if input_text:
     with c2:
         st.download_button("🌏 下載 .html (雙視對照)", full_html_file, "dual_view.html", mime="text/html")
 
-    # --- 4. 雙視校對區 (顯示重點) ---
     st.divider()
     st.header("雙視校對區")
-    
-    # 關鍵修正：使用 unsafe_allow_html=True 讓瀏覽器渲染 HTML，而不是印出文字
     st.markdown(html_content, unsafe_allow_html=True)
