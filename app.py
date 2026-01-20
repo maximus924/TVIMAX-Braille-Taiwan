@@ -4,7 +4,7 @@ import time
 
 # --- 1. 頁面設定 ---
 st.set_page_config(
-    page_title="麥西家正體中文字點字即時轉譯小麥麥",
+    page_title="麥西家中英數點字即時轉譯小麥麥",
     layout="wide",
 )
 
@@ -60,7 +60,7 @@ with st.sidebar:
     st.header("⚙️ 設定與修正")
     
     status_placeholder = st.empty()
-    status_placeholder.info("系統狀態：核心就緒 🟢")
+    status_placeholder.info("系統狀態：V17 混排引擎就緒 🟢")
     st.divider()
 
     st.subheader("📝 我的詞庫 (即時修正)")
@@ -78,31 +78,46 @@ with st.sidebar:
 
     st.divider()
     
-    # [新增] 英文標準切換
-    st.subheader("🔠 英文點字標準")
-    english_mode_option = st.radio(
-        "請選擇轉譯模式：",
-        ["UEB (統一英文點字)", "Traditional (傳統/舊版點字)"],
+    # [模式選擇]
+    st.subheader("🔠 轉譯模式")
+    mode_option = st.radio(
+        "請選擇內容類型：",
+        ["UEB (統一英文點字)", "Traditional (傳統/舊版點字)", "Nemeth (聶美茲數學點字)"],
         index=0,
-        help="UEB：括號使用 ⠐⠣ ⠐⠜，全大寫使用雙點。\n傳統：括號使用 ⠪ ⠕，大寫規則較簡單。"
+        help="Nemeth 模式支援中文與數學混排。"
     )
-    # 將中文選項轉換為程式碼代號
-    english_mode = "UEB" if "UEB" in english_mode_option else "Traditional"
+    
+    if "Nemeth" in mode_option:
+        mode = "Nemeth"
+    elif "UEB" in mode_option:
+        mode = "UEB"
+    else:
+        mode = "Traditional"
+
+    # [Nemeth 進階選項]
+    use_nemeth_indicators = False
+    if mode == "Nemeth":
+        st.write("📐 **數學模式設定**")
+        use_nemeth_indicators = st.checkbox(
+            "自動加入起始/結束號 (⠸⠩ ... ⠸⠱)", 
+            value=True,
+            help="當偵測到數學算式與中文混雜時，自動插入 Nemeth 切換記號。"
+        )
 
     st.subheader("📄 排版設定")
     chars_per_line = st.number_input("每行方數", min_value=10, max_value=60, value=32)
     font_size_px = st.slider("字體大小", 12, 36, 22)
 
 # --- 4. 主畫面 ---
-st.title("麥西家正體中文字點字即時轉譯小麥麥")
-st.markdown("支援：全形轉半形、英文大小寫、即時破音字修正、雙重格式匯出")
+st.title("麥西家中英數點字即時轉譯小麥麥")
+st.markdown("支援：全形轉半形、英文 UEB/傳統切換、**Nemeth 中數混排**、即時破音字修正")
 
 st.header("輸入文字")
-input_text = st.text_area("請在此貼上文章...", height=150, placeholder="例如：Boyan (WHIP: 1.20)...")
+input_text = st.text_area("請在此貼上文章...", height=150, placeholder="例如：計算 1+2=3 的答案。")
 
 if input_text:
-    # 傳入 english_mode
-    full_result, dual_data = braille_converter.text_to_braille(input_text, custom_rules, english_mode)
+    # 呼叫轉譯 (新增 use_nemeth_indicators 參數)
+    full_result, dual_data = braille_converter.text_to_braille(input_text, custom_rules, mode, use_nemeth_indicators)
     
     st.subheader("點字輸出 ⠒")
     st.text_area("純點字", value=full_result, height=150)
@@ -131,5 +146,5 @@ if input_text:
         st.download_button("🌏 下載 .html (雙視對照)", full_html_file, "dual_view.html", mime="text/html")
 
     st.divider()
-    st.header("雙視校對區")
+    st.header("雙視偵錯對照區")
     st.markdown(html_content, unsafe_allow_html=True)
