@@ -387,8 +387,8 @@ def generate_html_content(dual_data, chars_per_line, font_size_px):
 
 # ==========================================
 # 3. Streamlit 介面
-# ==========================================
-st.set_page_config(page_title="麥西家正體中文字點字即時轉譯小麥麥", layout="wide")
+# ========================================== 
+st.set_page_config(page_title="麥西家正體中文字點字即時轉譯小麥麥(V20)", layout="wide")
 
 st.markdown("""
 <style>
@@ -463,3 +463,4 @@ if input_text:
     st.divider()
     st.header("雙視校對區")
     st.markdown(html_content, unsafe_allow_html=True)
+
