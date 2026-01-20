@@ -1,4 +1,4 @@
-# 檔案名稱: braille_converter.py (v18 數學大師版)
+# 檔案名稱: braille_converter.py (v20 多字詞辨識引擎)
 from pypinyin import pinyin, Style, load_phrases_dict
 import braille_rules as rules 
 
@@ -43,12 +43,17 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
     
     # Nemeth 狀態
     nemeth_context = 'LITERARY' 
-    last_math_token = 'SPACE' # SPACE, NUMBER, OPERATION, COMPARISON, INDICATOR
-    math_level = 0 # 0=基線, 1=上標
+    last_math_token = 'SPACE' 
+    math_level = 0 
+
+    # 預先準備排序好的關鍵字列表 (由長到短，避免 "大於等於" 被誤判為 "大於")
+    sorted_math_keywords = []
+    if is_nemeth_mode:
+        sorted_math_keywords = sorted(rules.NEMETH['MATH_KEYWORDS'].keys(), key=len, reverse=True)
 
     while text_index < len(text):
         
-        # 1. 直接替換
+        # 1. 直接替換 (User Custom)
         match_override = False
         for word, braille_code in braille_overrides.items():
             if text.startswith(word, text_index):
@@ -87,12 +92,32 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 break
         if match_bopomofo: continue
 
-        char = text[text_index]
-
-        # === Nemeth 數學處理邏輯 ===
+        # === Nemeth 數學處理邏輯 (V20) ===
         if is_nemeth_mode:
-            # 判斷是否為數學元素 (包含 ^ 和運算符)
+            
+            # [關鍵升級] 優先檢查多字詞的數學關鍵字 (如 "大於等於")
+            found_keyword = None
+            keyword_braille_or_symbol = None
+            
+            for kw in sorted_math_keywords:
+                if text.startswith(kw, text_index):
+                    found_keyword = kw
+                    keyword_braille_or_symbol = rules.NEMETH['MATH_KEYWORDS'][kw]
+                    break
+            
+            char = text[text_index] # 當前字元 (如果沒對應到關鍵字)
+            
+            # 決定當前要處理的內容是 關鍵字(多字) 還是 單字
+            current_processing_text = found_keyword if found_keyword else char
+            
+            # 判斷是否為數學元素
+            # 如果是關鍵字 -> 必為數學元素 (除了少數可能只是純符號轉換，這裡假設關鍵字都是數學相關)
+            # 如果是單字 -> 檢查是否為數字、運算符等
+            
+            target_symbol = keyword_braille_or_symbol if found_keyword else char
+            
             is_math_char = (
+                found_keyword is not None or
                 char.isdigit() or 
                 char in rules.NEMETH['OPERATION_SIGNS'] or 
                 char in rules.NEMETH['COMPARISON_SIGNS'] or
@@ -100,7 +125,8 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 char == '^'
             )
             
-            if char == ' ': # 空格處理
+            # 空格處理
+            if not found_keyword and char == ' ': 
                 full_braille += " "
                 dual_list.append({'char': ' ', 'braille': ' ', 'is_error': False})
                 text_index += 1
@@ -120,62 +146,104 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 
                 char_braille = ""
                 
-                # (A) 次方/上標符號 (^)
-                if char == '^':
+                # 判斷 target_symbol 是「點字碼」還是「需要進一步轉換的符號」
+                # 我們約定：MATH_KEYWORDS 裡如果對應到 ASCII 運算符 (+ - =)，就繼續走邏輯
+                # 如果對應到點字字串 (如 ⠫⠞)，就直接輸出
+                
+                # (X) 直接是點字碼 (例如 三角形、根號、中文關鍵字轉成的點字)
+                # 簡單判斷法：看 target_symbol 是否包含點字 unicode (U+2800-U+28FF)
+                # 或者它不在我們的運算符號字典裡
+                is_direct_braille = any('\u2800' <= c <= '\u28ff' for c in target_symbol)
+                
+                if is_direct_braille:
+                    # 特殊處理：如果是上標指示符 (如 "平方" -> ⠘⠆)
+                    if target_symbol.startswith(rules.NEMETH['INDICATORS']['SUPERSCRIPT']):
+                         math_level += 1
+                         last_math_token = 'INDICATOR'
+                    
+                    # 輸出
+                    char_braille = target_symbol
+                    full_braille += char_braille
+                    dual_list.append({'char': current_processing_text, 'braille': char_braille, 'is_error': False})
+                    
+                    # 狀態更新 (簡單假設大多是符號或數字類，這裡設為 CHAR 或 INDICATOR 較安全)
+                    # 如果是"等於"的點字，應該視為 COMPARISON?
+                    # 為了精準，如果它等於 COMPARISON_SIGNS 裡的值，設為 COMPARISON
+                    if target_symbol in rules.NEMETH['COMPARISON_SIGNS'].values():
+                         last_math_token = 'COMPARISON'
+                    else:
+                         last_math_token = 'CHAR' # 預設
+                         
+                    text_index += len(current_processing_text)
+                    continue
+
+                # (A) 次方 (^)
+                if target_symbol == '^':
                     char_braille = rules.NEMETH['INDICATORS']['SUPERSCRIPT']
                     full_braille += char_braille
                     dual_list.append({'char': '^', 'braille': char_braille, 'is_error': False})
-                    last_math_token = 'INDICATOR' # 上標後數字通常不加數符
+                    last_math_token = 'INDICATOR'
                     math_level += 1
                     text_index += 1
                     continue
 
-                # (B) 運算符號 (+ - * /)
-                if char in rules.NEMETH['OPERATION_SIGNS']:
-                    # 關鍵邏輯：如果在上標模式，遇到運算符號，要先回到基線！
-                    if math_level > 0:
-                        baseline_code = rules.NEMETH['INDICATORS']['BASELINE']
-                        full_braille += baseline_code
-                        dual_list.append({'char': '', 'braille': baseline_code, 'is_error': False})
-                        math_level = 0 # 歸零
-                    
-                    char_braille = rules.NEMETH['OPERATION_SIGNS'][char]
-                    last_math_token = 'OPERATION' # 運算符後不加數符
-                    
-                # (C) 比較符號 (= > <)
-                elif char in rules.NEMETH['COMPARISON_SIGNS']:
+                # (B) 運算符號
+                if target_symbol in rules.NEMETH['OPERATION_SIGNS']:
                     if math_level > 0:
                         baseline_code = rules.NEMETH['INDICATORS']['BASELINE']
                         full_braille += baseline_code
                         dual_list.append({'char': '', 'braille': baseline_code, 'is_error': False})
                         math_level = 0
                     
-                    char_braille = rules.NEMETH['COMPARISON_SIGNS'][char]
-                    last_math_token = 'COMPARISON' # 比較符後要加數符
+                    char_braille = rules.NEMETH['OPERATION_SIGNS'][target_symbol]
+                    last_math_token = 'OPERATION'
+                    full_braille += char_braille
+                    dual_list.append({'char': current_processing_text, 'braille': char_braille, 'is_error': False})
+                    text_index += len(current_processing_text)
+                    continue
+                    
+                # (C) 比較符號
+                elif target_symbol in rules.NEMETH['COMPARISON_SIGNS']:
+                    if math_level > 0:
+                        baseline_code = rules.NEMETH['INDICATORS']['BASELINE']
+                        full_braille += baseline_code
+                        dual_list.append({'char': '', 'braille': baseline_code, 'is_error': False})
+                        math_level = 0
+                    
+                    char_braille = rules.NEMETH['COMPARISON_SIGNS'][target_symbol]
+                    last_math_token = 'COMPARISON'
+                    full_braille += char_braille
+                    dual_list.append({'char': current_processing_text, 'braille': char_braille, 'is_error': False})
+                    text_index += len(current_processing_text)
+                    continue
 
                 # (D) 數字
-                elif char.isdigit():
-                    # 判斷是否省略數符
-                    # 規則：前為運算符(OPERATION) 或 指標(INDICATOR, 含上標) 或 數字(NUMBER)，省略數符
-                    # 前為比較符(COMPARISON) 或 空格(SPACE)，要加數符
-                    if last_math_token in ['SPACE', 'COMPARISON', 'PUNCTUATION']:
+                elif target_symbol.isdigit():
+                    if last_math_token in ['SPACE', 'COMPARISON', 'PUNCTUATION', 'CHAR']:
                         char_braille += rules.NEMETH['INDICATORS']['NUMERIC']
-                    
-                    char_braille += rules.NEMETH['DIGITS'][char]
+                    char_braille += rules.NEMETH['DIGITS'][target_symbol]
                     last_math_token = 'NUMBER'
+                    full_braille += char_braille
+                    dual_list.append({'char': target_symbol, 'braille': char_braille, 'is_error': False})
+                    text_index += 1
+                    continue
                 
                 # (E) 括號
-                elif char in rules.NEMETH['PARENTHESES']:
-                    char_braille = rules.NEMETH['PARENTHESES'][char]
+                elif target_symbol in rules.NEMETH['PARENTHESES']:
+                    char_braille = rules.NEMETH['PARENTHESES'][target_symbol]
                     last_math_token = 'PUNCTUATION'
+                    full_braille += char_braille
+                    dual_list.append({'char': current_processing_text, 'braille': char_braille, 'is_error': False})
+                    text_index += len(current_processing_text)
+                    continue
                 
-                full_braille += char_braille
-                dual_list.append({'char': char, 'braille': char_braille, 'is_error': False})
-                text_index += 1
-                continue
+                # 防呆：如果是其他符號但被標記為數學
+                else:
+                    text_index += len(current_processing_text)
+                    continue
 
             else:
-                # 非數學字符 -> 切換回文字模式
+                # 非數學字符
                 if nemeth_context == 'MATH':
                     if use_nemeth_indicators:
                         end_code = rules.NEMETH['SWITCH']['END']
@@ -186,7 +254,8 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 pass
 
         # === 標準文字處理 ===
-        # 英文處理
+        char = text[text_index] # 重新抓取，因為可能不是關鍵字
+        
         current_segment = text[text_index]
         if 'a' <= text[text_index].lower() <= 'z':
             end_idx = text_index
@@ -216,7 +285,6 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
             text_index += len(current_segment)
             continue
 
-        # 數字標準處理 (非 Nemeth)
         if char.isdigit():
             cb = ""
             if not is_number_mode:
@@ -231,7 +299,6 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
             text_index += 1
             continue
 
-        # 標點
         if char in current_punctuation:
             is_number_mode = False
             cb = current_punctuation[char]
@@ -247,7 +314,6 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
             text_index += 1
             continue
 
-        # 中文
         is_number_mode = False
         single_pinyin = pinyin(char, style=Style.BOPOMOFO)
         zhuyin = single_pinyin[0][0]
@@ -265,7 +331,6 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
     return full_braille, dual_list
 
 def convert_single_char_zhuyin(char, zhuyin, rules):
-    # 邏輯不變
     sheng = ""
     yun = ""
     tone = ""
@@ -300,7 +365,6 @@ def convert_single_char_zhuyin(char, zhuyin, rules):
     return sheng + yun + tone, is_error
 
 def generate_html_content(dual_data, chars_per_line, font_size_px):
-    # 邏輯不變
     html_parts = ['<div class="braille-container">']
     current_line_len = 0
     for item in dual_data:
