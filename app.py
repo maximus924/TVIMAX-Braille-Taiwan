@@ -2,7 +2,7 @@ import streamlit as st
 import time
 
 # --- 【關鍵修正】這行必須放在最最最前面，否則長文章會報錯 ---
-st.set_page_config(page_title="麥西家正體中文字點字即時轉譯小麥麥 (V23)", layout="wide")
+st.set_page_config(page_title="麥西家-正體中英數點字即時轉譯小麥麥1150121", layout="wide")
 
 # --- 防護罩：檢查套件 ---
 try:
@@ -286,7 +286,7 @@ st.markdown("""<style>.braille-container { display: flex; flex-wrap: wrap; gap: 
 
 with st.sidebar:
     st.header("⚙️ 設定與修正")
-    st.info("系統狀態：V23 絕對防禦版 🛡️")
+    st.info("系統狀態：小麥麥迴圈滿滿版 🛡️")
     st.divider()
     st.subheader("📝 我的詞庫")
     default_dict = "Boyan=⠠⠃⠕⠽⠁⠝\n快樂=ㄎㄨㄞˋ ㄌㄜˋ\n冠軍=ㄍㄨㄢˋ ㄐㄩㄣ"
@@ -301,7 +301,7 @@ with st.sidebar:
     chars_per_line = st.number_input("每行方數", min_value=10, max_value=60, value=32)
     font_size_px = st.slider("字體大小", 12, 36, 22)
 
-st.title("麥西家正體中文字點字即時轉譯小麥麥 (V23)")
+st.title("麥西家-正體中英數點字即時轉譯小麥麥1150121")
 st.markdown("支援：全形轉半形、英文 UEB/傳統切換、**Nemeth 中數混排**、即時破音字修正")
 st.header("輸入文字")
 input_text = st.text_area("請在此貼上文章...", height=150, placeholder="例如：計算 1+2=3 的答案。")
@@ -317,7 +317,7 @@ if input_text:
         full_html_file = f"""<html><head><meta charset="utf-8"><style>.braille-container {{ display: flex; flex-wrap: wrap; gap: 5px; }}.braille-box {{ border: 1px solid #ccc; padding: 5px; margin: 2px; text-align: center; }}.braille-bottom {{ font-size: {font_size_px}px; font-weight: bold; }}.break-line {{ flex-basis: 100%; height: 0; }}</style></head><body><h2>雙視對照表</h2>{html_content}</body></html>"""
         with c2: st.download_button("🌏 下載 .html", full_html_file, "dual_view.html", mime="text/html")
         st.divider()
-        st.header("雙視校對區")
+        st.header("雙視偵錯對照區")
         st.markdown(html_content, unsafe_allow_html=True)
     except Exception as e:
         st.error(f"❌ 程式發生意外錯誤：{e}")
