@@ -3,7 +3,7 @@ from pypinyin import pinyin, Style, load_phrases_dict
 import time
 
 # ==========================================
-# 1. 規則定義 (直接寫在這裡，不再依賴外部檔案)
+# 1. 規則庫 (Braille Rules) - 內建於此，不需外部檔案
 # ==========================================
 class BrailleRules:
     # 聲母
@@ -47,8 +47,10 @@ class BrailleRules:
         '『': '⠰⠤', '』': '⠤⠆', '—': '⠒⠒', '-': '⠒',
         '（': '⠪', '）': '⠕'
     }
+    # 傳統模式與 UEB 模式的標點差異
     PUNCTUATION_TRADITIONAL = PUNCTUATION_BASE.copy()
     PUNCTUATION_TRADITIONAL.update({'(': '⠪', ')': '⠕', '[': '⠯', ']': '⠽'})
+    
     PUNCTUATION_UEB = PUNCTUATION_BASE.copy()
     PUNCTUATION_UEB.update({'(': '⠐⠣', ')': '⠐⠜', '[': '⠨⠣', ']': '⠨⠜'})
 
@@ -63,7 +65,7 @@ class BrailleRules:
         'u': '⠥', 'v': '⠧', 'w': '⠺', 'x': '⠭', 'y': '⠽', 'z': '⠵'
     }
 
-    # Nemeth 數學符號庫 (完整版)
+    # === Nemeth 數學符號庫 (完整版) ===
     NEMETH = {
         'DIGITS': {
             '1': '⠂', '2': '⠆', '3': '⠒', '4': '⠲', '5': '⠢',
@@ -75,6 +77,7 @@ class BrailleRules:
         'COMPARISON_SIGNS': {
             '=': '⠀⠨⠅⠀', '>': '⠀⠨⠂⠀', '<': '⠀⠐⠅⠀'
         },
+        # 中文數學關鍵字 (讓程式看懂題目)
         'MATH_KEYWORDS': {
             '加': '+', '＋': '+',
             '減': '-', '－': '-', '負': '-', 
@@ -88,7 +91,7 @@ class BrailleRules:
         },
         'PARENTHESES': {
             '(': '⠷', ')': '⠾', '[': '⠨⠷', ']': '⠨⠾', '{': '⠸⠷', '}': '⠸⠾',
-            '（': '⠷', '）': '⠾'
+            '（': '⠷', '）': '⠾' # 全形括號對應
         },
         'SWITCH': {
             'START': '⠸⠩⠀', 'END': '⠀⠸⠱'
@@ -99,7 +102,7 @@ class BrailleRules:
 rules = BrailleRules()
 
 # ==========================================
-# 2. 轉譯引擎邏輯
+# 2. 轉譯引擎邏輯 (Converter Logic)
 # ==========================================
 
 # 預設破音字
@@ -150,6 +153,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
     dual_list = [] 
     is_nemeth_mode = (mode == 'Nemeth')
     
+    # 根據模式選擇標點符號表
     if mode == 'Traditional':
         current_punctuation = rules.PUNCTUATION_TRADITIONAL
         current_special = rules.SPECIAL_TRADITIONAL
@@ -157,6 +161,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
         current_punctuation = rules.PUNCTUATION_UEB
         current_special = rules.SPECIAL_UEB
 
+    # 自定義規則解析
     braille_overrides = {} 
     bopomofo_overrides = {}
     if custom_rules:
@@ -168,11 +173,15 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
 
     text_index = 0
     is_number_mode = False 
+    
+    # Nemeth 狀態變數
     nemeth_context = 'LITERARY' 
     last_math_token = 'SPACE' 
     math_level = 0 
 
     while text_index < len(text):
+        
+        # 1. 檢查直接替換 (Overrides)
         match_override = False
         for word, braille_code in braille_overrides.items():
             if text.startswith(word, text_index):
@@ -189,6 +198,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 break
         if match_override: continue
 
+        # 2. 檢查注音修正
         match_bopomofo = False
         for word, bopomofo_list in bopomofo_overrides.items():
             if text.startswith(word, text_index):
@@ -210,9 +220,10 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
 
         char = text[text_index]
 
-        # === Nemeth Logic ===
+        # === Nemeth 數學邏輯 ===
         if is_nemeth_mode:
             mapped_char = None
+            # 檢查是否為中文數學關鍵字 (如：加, 減)
             if char in rules.NEMETH['MATH_KEYWORDS']:
                 mapped_char = rules.NEMETH['MATH_KEYWORDS'][char]
             
@@ -226,6 +237,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 target_char == '^'
             )
             
+            # 空格處理
             if char == ' ': 
                 full_braille += " "
                 dual_list.append({'char': ' ', 'braille': ' ', 'is_error': False})
@@ -234,6 +246,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 continue
 
             if is_math_char:
+                # 進入數學模式
                 if nemeth_context == 'LITERARY':
                     if use_nemeth_indicators:
                         start_code = rules.NEMETH['SWITCH']['START']
@@ -244,6 +257,8 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                     math_level = 0
                 
                 char_braille = ""
+                
+                # (A) 次方 (^)
                 if target_char == '^':
                     char_braille = rules.NEMETH['INDICATORS']['SUPERSCRIPT']
                     full_braille += char_braille
@@ -253,14 +268,17 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                     text_index += 1
                     continue
 
+                # (B) 運算符號
                 if target_char in rules.NEMETH['OPERATION_SIGNS']:
-                    if math_level > 0:
+                    if math_level > 0: # 運算符會強制回到基線
                         baseline_code = rules.NEMETH['INDICATORS']['BASELINE']
                         full_braille += baseline_code
                         dual_list.append({'char': '', 'braille': baseline_code, 'is_error': False})
                         math_level = 0
                     char_braille = rules.NEMETH['OPERATION_SIGNS'][target_char]
                     last_math_token = 'OPERATION'
+                
+                # (C) 比較符號
                 elif target_char in rules.NEMETH['COMPARISON_SIGNS']:
                     if math_level > 0:
                         baseline_code = rules.NEMETH['INDICATORS']['BASELINE']
@@ -269,11 +287,15 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                         math_level = 0
                     char_braille = rules.NEMETH['COMPARISON_SIGNS'][target_char]
                     last_math_token = 'COMPARISON'
+                
+                # (D) 數字
                 elif char.isdigit():
                     if last_math_token in ['SPACE', 'COMPARISON', 'PUNCTUATION']:
                         char_braille += rules.NEMETH['INDICATORS']['NUMERIC']
                     char_braille += rules.NEMETH['DIGITS'][char]
                     last_math_token = 'NUMBER'
+                
+                # (E) 括號
                 elif target_char in rules.NEMETH['PARENTHESES']:
                     char_braille = rules.NEMETH['PARENTHESES'][target_char]
                     last_math_token = 'PUNCTUATION'
@@ -283,6 +305,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 text_index += 1
                 continue
             else:
+                # 非數學字符 -> 切換回文字
                 if nemeth_context == 'MATH':
                     if use_nemeth_indicators:
                         end_code = rules.NEMETH['SWITCH']['END']
@@ -292,7 +315,9 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                     math_level = 0
                 pass
 
-        # === Literary Logic ===
+        # === 一般文字邏輯 (Literary) ===
+        
+        # 英文處理
         current_segment = text[text_index]
         if 'a' <= text[text_index].lower() <= 'z':
             end_idx = text_index
@@ -320,6 +345,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
             text_index += len(current_segment)
             continue
 
+        # 數字 (非 Nemeth 模式)
         if char.isdigit():
             cb = ""
             if not is_number_mode:
@@ -333,6 +359,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
             text_index += 1
             continue
 
+        # 標點
         if char in current_punctuation:
             is_number_mode = False
             cb = current_punctuation[char]
@@ -341,6 +368,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
             text_index += 1
             continue
             
+        # 空格
         if char == ' ':
             is_number_mode = False
             full_braille += " "
@@ -348,6 +376,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
             text_index += 1
             continue
 
+        # 中文 (最後的 Fallback)
         is_number_mode = False
         single_pinyin = pinyin(char, style=Style.BOPOMOFO)
         zhuyin = single_pinyin[0][0]
@@ -357,6 +386,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
         dual_list.append({'char': char, 'braille': char_braille, 'is_error': is_err})
         text_index += 1
 
+    # 結束時若還在數學模式，補上結束號
     if is_nemeth_mode and use_nemeth_indicators and nemeth_context == 'MATH':
         end_code = rules.NEMETH['SWITCH']['END']
         full_braille += end_code
@@ -386,9 +416,9 @@ def generate_html_content(dual_data, chars_per_line, font_size_px):
     return "".join(html_parts)
 
 # ==========================================
-# 3. Streamlit 介面
-# ========================================== 
-st.set_page_config(page_title="麥西家正體中文字點字即時轉譯小麥麥(V20)", layout="wide")
+# 3. Streamlit 介面 (Interface)
+# ==========================================
+st.set_page_config(page_title="麥西家正體中文字點字即時轉譯小麥麥", layout="wide")
 
 st.markdown("""
 <style>
@@ -403,7 +433,7 @@ st.markdown("""
 
 with st.sidebar:
     st.header("⚙️ 設定與修正")
-    st.info("系統狀態：All-in-One V20 無依賴版 🟢")
+    st.info("系統狀態：All-in-One V21 終極版 🟢")
     st.divider()
 
     st.subheader("📝 我的詞庫")
@@ -437,7 +467,7 @@ with st.sidebar:
     chars_per_line = st.number_input("每行方數", min_value=10, max_value=60, value=32)
     font_size_px = st.slider("字體大小", 12, 36, 22)
 
-st.title("麥西家正體中文字點字即時轉譯小麥麥")
+st.title("麥西家正體中文字點字即時轉譯小麥麥 (V21)")
 st.markdown("支援：全形轉半形、英文 UEB/傳統切換、**Nemeth 中數混排**、即時破音字修正")
 
 st.header("輸入文字")
@@ -463,4 +493,3 @@ if input_text:
     st.divider()
     st.header("雙視校對區")
     st.markdown(html_content, unsafe_allow_html=True)
-
