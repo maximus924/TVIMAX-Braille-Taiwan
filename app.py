@@ -1,8 +1,17 @@
 import streamlit as st
-from pypinyin import pinyin, Style, load_phrases_dict
 import time
 
-# --- 1. 內建規則庫 (Braille Rules) ---
+# --- 防護罩：檢查套件是否安裝 ---
+try:
+    from pypinyin import pinyin, Style, load_phrases_dict
+except ImportError:
+    st.error("🔴 嚴重錯誤：找不到 'pypinyin' 套件！")
+    st.warning("請檢查您的 GitHub 上是否有 'requirements.txt' 檔案，且內容包含 'pypinyin'。")
+    st.stop() # 停止執行
+
+# ==========================================
+# 1. 規則庫 (Braille Rules) - V22 完整內建版
+# ==========================================
 class BrailleRules:
     INITIALS = {'ㄅ': '⠕', 'ㄆ': '⠏', 'ㄇ': '⠍', 'ㄈ': '⠟', 'ㄉ': '⠙', 'ㄊ': '⠋', 'ㄋ': '⠝', 'ㄌ': '⠉', 'ㄍ': '⠅', 'ㄎ': '⠇', 'ㄏ': '⠗', 'ㄐ': '⠅', 'ㄑ': '⠚', 'ㄒ': '⠑', 'ㄓ': '⠁', 'ㄔ': '⠃', 'ㄕ': '⠊', 'ㄖ': '⠛', 'ㄗ': '⠓', 'ㄘ': '⠚', 'ㄙ': '⠑'}
     ZI_CHI_SHI_RI_GROUPS = {'ㄓ', 'ㄔ', 'ㄕ', 'ㄖ', 'ㄗ', 'ㄘ', 'ㄙ'}
@@ -11,13 +20,16 @@ class BrailleRules:
     TONES = {1: '⠄', 'ˊ': '⠂', 'ˇ': '⠈', 'ˋ': '⠐', '˙': '⠁', 5: '⠁'}
     
     PUNCTUATION_BASE = {'，': '⠆', ',': '⠆', '、': '⠠', '；': '⠰', ';': '⠰', '：': '⠒⠒', ':': '⠒⠒', '。': '⠤', '.': '⠤', '？': '⠕', '?': '⠕', '！': '⠇', '!': '⠇', '「': '⠰⠤', '」': '⠤⠆', '【': '⠯', ']': '⠽', '『': '⠰⠤', '』': '⠤⠆', '—': '⠒⠒', '-': '⠒', '（': '⠪', '）': '⠕'}
+    
     PUNCTUATION_TRADITIONAL = PUNCTUATION_BASE.copy()
     PUNCTUATION_TRADITIONAL.update({'(': '⠪', ')': '⠕', '[': '⠯', ']': '⠽'})
+    
     PUNCTUATION_UEB = PUNCTUATION_BASE.copy()
     PUNCTUATION_UEB.update({'(': '⠐⠣', ')': '⠐⠜', '[': '⠨⠣', ']': '⠨⠜'})
     
     SPECIAL_TRADITIONAL = {'NUMBER_PREFIX': '⠼', 'CAP_SYMBOL': '⠠', 'WORD_CAP_SYMBOL': '⠠⠠', 'SPACE': '  '}
     SPECIAL_UEB = {'NUMBER_PREFIX': '⠼', 'CAP_SYMBOL': '⠠', 'WORD_CAP_SYMBOL': '⠠⠠', 'SPACE': '  '}
+    
     ENGLISH = {'a': '⠁', 'b': '⠃', 'c': '⠉', 'd': '⠙', 'e': '⠑', 'f': '⠋', 'g': '⠛', 'h': '⠓', 'i': '⠊', 'j': '⠚', 'k': '⠅', 'l': '⠇', 'm': '⠍', 'n': '⠝', 'o': '⠕', 'p': '⠏', 'q': '⠟', 'r': '⠗', 's': '⠎', 't': '⠞', 'u': '⠥', 'v': '⠧', 'w': '⠺', 'x': '⠭', 'y': '⠽', 'z': '⠵'}
 
     NEMETH = {
@@ -30,33 +42,37 @@ class BrailleRules:
         'SWITCH': {'START': '⠸⠩⠀', 'END': '⠀⠸⠱'}
     }
 
+# 初始化規則
 rules = BrailleRules()
 
-# --- 2. 轉譯引擎 (Converter) ---
+# --- 2. 轉譯引擎邏輯 ---
 default_polyphone_fixes = {'冠軍': [['guan4'], ['jun1']], '皇冠': [['guan1'], ['guan1']], '校對': [['jiao4'], ['dui4']], '重創': [['zhong4'], ['chuang1']], '創傷': [['chuang1'], ['shang1']], '了解': [['liao3'], ['jie3']], '艾璞樂': [['ai4'], ['pu2'], ['le4']], '錡銳': [['qi2'], ['rui4']]}
 load_phrases_dict(default_polyphone_fixes)
 
 def convert_single_char_zhuyin(char, zhuyin):
-    sheng, yun, tone = "", "", ""
-    temp_zhuyin = zhuyin
-    if temp_zhuyin and temp_zhuyin[-1] in rules.TONES:
-        tone = rules.TONES[temp_zhuyin[-1]]
-        temp_zhuyin = temp_zhuyin[:-1]
-    elif '˙' in temp_zhuyin:
-        tone = rules.TONES[5]
-        temp_zhuyin = temp_zhuyin.replace('˙', '')
-    else:
-        tone = rules.TONES[1]
+    try:
+        sheng, yun, tone = "", "", ""
+        temp_zhuyin = zhuyin
+        if temp_zhuyin and temp_zhuyin[-1] in rules.TONES:
+            tone = rules.TONES[temp_zhuyin[-1]]
+            temp_zhuyin = temp_zhuyin[:-1]
+        elif '˙' in temp_zhuyin:
+            tone = rules.TONES[5]
+            temp_zhuyin = temp_zhuyin.replace('˙', '')
+        else:
+            tone = rules.TONES[1]
 
-    for initial in rules.INITIALS:
-        if temp_zhuyin.startswith(initial):
-            sheng = rules.INITIALS[initial]
-            temp_zhuyin = temp_zhuyin[len(initial):]
-            break
-    if temp_zhuyin in rules.COMBINED_FINALS: yun = rules.COMBINED_FINALS[temp_zhuyin]
-    elif temp_zhuyin in rules.FINALS: yun = rules.FINALS[temp_zhuyin]
-    if sheng and not yun and not temp_zhuyin and zhuyin[0] in rules.ZI_CHI_SHI_RI_GROUPS: yun = rules.FINALS['ㄦ']
-    return sheng + yun + tone, (not yun)
+        for initial in rules.INITIALS:
+            if temp_zhuyin.startswith(initial):
+                sheng = rules.INITIALS[initial]
+                temp_zhuyin = temp_zhuyin[len(initial):]
+                break
+        if temp_zhuyin in rules.COMBINED_FINALS: yun = rules.COMBINED_FINALS[temp_zhuyin]
+        elif temp_zhuyin in rules.FINALS: yun = rules.FINALS[temp_zhuyin]
+        if sheng and not yun and not temp_zhuyin and zhuyin and zhuyin[0] in rules.ZI_CHI_SHI_RI_GROUPS: yun = rules.FINALS['ㄦ']
+        return sheng + yun + tone, (not yun)
+    except Exception as e:
+        return "", True # 發生錯誤時回傳空字串與錯誤標記
 
 def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=False):
     full_braille, dual_list = "", []
@@ -77,6 +93,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
     nemeth_context, last_math_token, math_level = 'LITERARY', 'SPACE', 0
 
     while text_index < len(text):
+        # 1. 直接替換
         match_found = False
         for word, braille_code in braille_overrides.items():
             if text.startswith(word, text_index):
@@ -92,6 +109,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                 break
         if match_found: continue
 
+        # 2. 注音修正
         for word, bopomofo_list in bopomofo_overrides.items():
             if text.startswith(word, text_index):
                 if is_nemeth_mode and use_nemeth_indicators and nemeth_context == 'MATH':
@@ -110,7 +128,7 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
 
         char = text[text_index]
         
-        # --- NEMETH LOGIC ---
+        # === NEMETH LOGIC ===
         if is_nemeth_mode:
             mapped_char = rules.NEMETH['MATH_KEYWORDS'].get(char)
             target_char = mapped_char if mapped_char else char
@@ -162,8 +180,9 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
                         dual_list.append({'char': '', 'braille': rules.NEMETH['SWITCH']['END'], 'is_error': False})
                     nemeth_context = 'LITERARY'; math_level = 0
         
-        # --- LITERARY LOGIC ---
+        # === LITERARY LOGIC ===
         current_segment = text[text_index]
+        # 簡單英文偵測
         if 'a' <= text[text_index].lower() <= 'z':
             end_idx = text_index
             while end_idx < len(text) and ('a' <= text[end_idx].lower() <= 'z'): end_idx += 1
@@ -203,7 +222,9 @@ def text_to_braille(text, custom_rules=None, mode='UEB', use_nemeth_indicators=F
 
         is_number_mode = False
         single_pinyin = pinyin(char, style=Style.BOPOMOFO)
-        char_braille, is_err = convert_single_char_zhuyin(char, single_pinyin[0][0])
+        # 這裡加強防護：如果 pypinyin 回傳空值，給它預設值
+        zhuyin_data = single_pinyin[0][0] if single_pinyin else char
+        char_braille, is_err = convert_single_char_zhuyin(char, zhuyin_data)
         full_braille += char_braille
         dual_list.append({'char': char, 'braille': char_braille, 'is_error': is_err})
         text_index += 1
@@ -230,13 +251,13 @@ def generate_html_content(dual_data, chars_per_line, font_size_px):
     html_parts.append('</div>')
     return "".join(html_parts)
 
-# --- 3. 介面 (App Interface) ---
+# --- 3. Streamlit 介面 ---
 st.set_page_config(page_title="麥西家正體中文字點字即時轉譯小麥麥", layout="wide")
 st.markdown("""<style>.braille-container { display: flex; flex-wrap: wrap; gap: 8px; padding: 15px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef; line-height: 1.5; }.braille-box { display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid #ced4da; background-color: white; border-radius: 4px; padding: 4px; min-width: 32px; margin-bottom: 5px; }.error-box { border: 2px solid #ff4b4b !important; background-color: #ffe6e6 !important; }.char-top { font-size: 14px; color: #495057; margin-bottom: 2px; font-family: "Microsoft JhengHei", sans-serif; }.braille-bottom { font-weight: bold; color: #000; }.break-line { flex-basis: 100%; height: 0; margin: 0; }</style>""", unsafe_allow_html=True)
 
 with st.sidebar:
     st.header("⚙️ 設定與修正")
-    st.info("系統狀態：V21 重生版 🟢")
+    st.info("系統狀態：V22 診斷防護版 🟢")
     st.divider()
     st.subheader("📝 我的詞庫")
     default_dict = "Boyan=⠠⠃⠕⠽⠁⠝\n快樂=ㄎㄨㄞˋ ㄌㄜˋ\n冠軍=ㄍㄨㄢˋ ㄐㄩㄣ"
@@ -251,20 +272,24 @@ with st.sidebar:
     chars_per_line = st.number_input("每行方數", min_value=10, max_value=60, value=32)
     font_size_px = st.slider("字體大小", 12, 36, 22)
 
-st.title("麥西家正體中文字點字即時轉譯小麥麥 (V21)")
+st.title("麥西家正體中文字點字即時轉譯小麥麥 (V22)")
 st.markdown("支援：全形轉半形、英文 UEB/傳統切換、**Nemeth 中數混排**、即時破音字修正")
 st.header("輸入文字")
 input_text = st.text_area("請在此貼上文章...", height=150, placeholder="例如：計算 1+2=3 的答案。")
 
 if input_text:
-    full_result, dual_data = text_to_braille(input_text, custom_rules, mode, use_nemeth_indicators)
-    st.subheader("點字輸出 ⠒")
-    st.text_area("純點字", value=full_result, height=150)
-    c1, c2 = st.columns([1, 1])
-    with c1: st.download_button("📥 下載 .txt", full_result, "braille_output.txt")
-    html_content = generate_html_content(dual_data, chars_per_line, font_size_px)
-    full_html_file = f"""<html><head><meta charset="utf-8"><style>.braille-container {{ display: flex; flex-wrap: wrap; gap: 5px; }}.braille-box {{ border: 1px solid #ccc; padding: 5px; margin: 2px; text-align: center; }}.braille-bottom {{ font-size: {font_size_px}px; font-weight: bold; }}.break-line {{ flex-basis: 100%; height: 0; }}</style></head><body><h2>雙視對照表</h2>{html_content}</body></html>"""
-    with c2: st.download_button("🌏 下載 .html", full_html_file, "dual_view.html", mime="text/html")
-    st.divider()
-    st.header("雙視校對區")
-    st.markdown(html_content, unsafe_allow_html=True)
+    try:
+        full_result, dual_data = text_to_braille(input_text, custom_rules, mode, use_nemeth_indicators)
+        st.subheader("點字輸出 ⠒")
+        st.text_area("純點字", value=full_result, height=150)
+        c1, c2 = st.columns([1, 1])
+        with c1: st.download_button("📥 下載 .txt", full_result, "braille_output.txt")
+        html_content = generate_html_content(dual_data, chars_per_line, font_size_px)
+        full_html_file = f"""<html><head><meta charset="utf-8"><style>.braille-container {{ display: flex; flex-wrap: wrap; gap: 5px; }}.braille-box {{ border: 1px solid #ccc; padding: 5px; margin: 2px; text-align: center; }}.braille-bottom {{ font-size: {font_size_px}px; font-weight: bold; }}.break-line {{ flex-basis: 100%; height: 0; }}</style></head><body><h2>雙視對照表</h2>{html_content}</body></html>"""
+        with c2: st.download_button("🌏 下載 .html", full_html_file, "dual_view.html", mime="text/html")
+        st.divider()
+        st.header("雙視校對區")
+        st.markdown(html_content, unsafe_allow_html=True)
+    except Exception as e:
+        st.error(f"❌ 程式發生錯誤：{e}")
+        st.info("請將上方這行英文錯誤訊息截圖或複製給工程師 (Gemini)，這對解決問題非常有幫助！")
