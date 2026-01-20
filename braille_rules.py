@@ -1,6 +1,6 @@
-# 檔案名稱: braille_rules.py (v16 Nemeth 數學升級版)
+# 檔案名稱: braille_rules.py (v18 數學大師版)
 
-# 1. 聲母 (Initials) - 中文不變
+# 1. 聲母 (Initials)
 INITIALS = {
     'ㄅ': '⠕', 'ㄆ': '⠏', 'ㄇ': '⠍', 'ㄈ': '⠟',
     'ㄉ': '⠙', 'ㄊ': '⠋', 'ㄋ': '⠝', 'ㄌ': '⠉',
@@ -9,10 +9,9 @@ INITIALS = {
     'ㄓ': '⠁', 'ㄔ': '⠃', 'ㄕ': '⠊', 'ㄖ': '⠛',
     'ㄗ': '⠓', 'ㄘ': '⠚', 'ㄙ': '⠑'
 }
-
 ZI_CHI_SHI_RI_GROUPS = {'ㄓ', 'ㄔ', 'ㄕ', 'ㄖ', 'ㄗ', 'ㄘ', 'ㄙ'}
 
-# 2. 韻母 (Finals) - 中文不變
+# 2. 韻母 (Finals)
 FINALS = {
     'ㄚ': '⠜', 'ㄛ': '⠣', 'ㄜ': '⠮', 'ㄝ': '⠢',
     'ㄞ': '⠺', 'ㄟ': '⠴', 'ㄠ': '⠩', 'ㄡ': '⠷',
@@ -20,7 +19,7 @@ FINALS = {
     'ㄦ': '⠱', 'ㄧ': '⠡', 'ㄨ': '⠌', 'ㄩ': '⠳'
 }
 
-# 3. 結合韻 (Combined Finals) - 中文不變
+# 3. 結合韻
 COMBINED_FINALS = {
     'ㄧㄚ': '⠾', 'ㄨㄚ': '⠔', 'ㄧㄛ': '⠴', 'ㄨㄛ': '⠒',
     'ㄧㄝ': '⠬', 'ㄩㄝ': '⠦', 'ㄧㄞ': '⠢', 'ㄨㄞ': '⠶',
@@ -30,12 +29,10 @@ COMBINED_FINALS = {
     'ㄨㄥ': '⠯', 'ㄩㄥ': '⠖'
 }
 
-# 4. 聲調 (Tones) - 中文不變
-TONES = {
-    1: '⠄', 'ˊ': '⠂', 'ˇ': '⠈', 'ˋ': '⠐', '˙': '⠁', 5: '⠁'
-}
+# 4. 聲調
+TONES = {1: '⠄', 'ˊ': '⠂', 'ˇ': '⠈', 'ˋ': '⠐', '˙': '⠁', 5: '⠁'}
 
-# 5. 標點符號 (Punctuation) - 一般文字模式用
+# 5. 標點符號 (一般模式)
 PUNCTUATION_BASE = {
     '，': '⠆', ',': '⠆', '、': '⠠', '；': '⠰', ';': '⠰',
     '：': '⠒⠒', ':': '⠒⠒', '。': '⠤', '.': '⠤',
@@ -44,83 +41,59 @@ PUNCTUATION_BASE = {
     '『': '⠰⠤', '』': '⠤⠆', '—': '⠒⠒', '-': '⠒',
     '（': '⠪', '）': '⠕'
 }
-
-# 舊版英文/傳統
 PUNCTUATION_TRADITIONAL = PUNCTUATION_BASE.copy()
-PUNCTUATION_TRADITIONAL.update({
-    '(': '⠪', ')': '⠕', '[': '⠯', ']': '⠽'
-})
-
-# 新版英文 (UEB)
+PUNCTUATION_TRADITIONAL.update({'(': '⠪', ')': '⠕', '[': '⠯', ']': '⠽'})
 PUNCTUATION_UEB = PUNCTUATION_BASE.copy()
-PUNCTUATION_UEB.update({
-    '(': '⠐⠣', ')': '⠐⠜', '[': '⠨⠣', ']': '⠨⠜'
-})
+PUNCTUATION_UEB.update({'(': '⠐⠣', ')': '⠐⠜', '[': '⠨⠣', ']': '⠨⠜'})
 
-# 6. 特殊符號 (一般文字模式)
-SPECIAL_TRADITIONAL = {
-    'NUMBER_PREFIX': '⠼', 'CAP_SYMBOL': '⠠', 'WORD_CAP_SYMBOL': '⠠⠠', 'SPACE': '  '
-}
-SPECIAL_UEB = {
-    'NUMBER_PREFIX': '⠼', 'CAP_SYMBOL': '⠠', 'WORD_CAP_SYMBOL': '⠠⠠', 'SPACE': '  '
-}
+# 6. 特殊符號
+SPECIAL_TRADITIONAL = {'NUMBER_PREFIX': '⠼', 'CAP_SYMBOL': '⠠', 'WORD_CAP_SYMBOL': '⠠⠠', 'SPACE': '  '}
+SPECIAL_UEB = {'NUMBER_PREFIX': '⠼', 'CAP_SYMBOL': '⠠', 'WORD_CAP_SYMBOL': '⠠⠠', 'SPACE': '  '}
 
-# 7. 英文字母 (共用)
+# 7. 英文
 ENGLISH = {
-    'a': '⠁', 'b': '⠃', 'c': '⠉', 'd': '⠙', 'e': '⠑',
-    'f': '⠋', 'g': '⠛', 'h': '⠓', 'i': '⠊', 'j': '⠚',
-    'k': '⠅', 'l': '⠇', 'm': '⠍', 'n': '⠝', 'o': '⠕',
-    'p': '⠏', 'q': '⠟', 'r': '⠗', 's': '⠎', 't': '⠞',
+    'a': '⠁', 'b': '⠃', 'c': '⠉', 'd': '⠙', 'e': '⠑', 'f': '⠋', 'g': '⠛', 'h': '⠓', 'i': '⠊', 'j': '⠚',
+    'k': '⠅', 'l': '⠇', 'm': '⠍', 'n': '⠝', 'o': '⠕', 'p': '⠏', 'q': '⠟', 'r': '⠗', 's': '⠎', 't': '⠞',
     'u': '⠥', 'v': '⠧', 'w': '⠺', 'x': '⠭', 'y': '⠽', 'z': '⠵'
 }
 
-# === [新增] 8. 聶美茲數學符號庫 (Nemeth Code) ===
+# === 8. Nemeth 數學符號庫 (V18 擴充版) ===
 NEMETH = {
-    # 數字 (Dropped Numbers: 下位點)
     'DIGITS': {
         '1': '⠂', '2': '⠆', '3': '⠒', '4': '⠲', '5': '⠢',
         '6': '⠖', '7': '⠶', '8': '⠦', '9': '⠔', '0': '⠴'
     },
     
-    # 運算符號
-    'OPERATORS': {
-        '+': '⠬',  # Plus (dots 3-4-6)
-        '-': '⠤',  # Minus (dots 3-6)
-        '×': '⠈⠡', # Multiplication Cross (dots 4, 1-6)
-        '*': '⠈⠡', # 通用乘號對應
-        '÷': '⠨⠌', # Division (dots 4-6, 3-4)
-        '/': '⠨⠌', # 通用除號對應
-        '=': '⠀⠨⠅⠀', # Equals (Space, dots 4-6, 1-3, Space) 注意前後空格
-        '>': '⠀⠨⠂⠀', # Greater than (Space, dots 4-6, 2, Space)
-        '<': '⠀⠐⠅⠀', # Less than (Space, dots 5, 1-3, Space)
-        '.': '⠨',  # Decimal point (dot 4-6)
-        ',': '⠠',  # Comma (dot 6)
+    # 運算符號 (數字後不需數符)
+    'OPERATION_SIGNS': {
+        '+': '⠬', '-': '⠤', 
+        '×': '⠈⠡', '*': '⠈⠡', # 乘號 (Multiplication Cross)
+        '÷': '⠨⠌', '/': '⠨⠌'
     },
     
-    # 分數與上下標
+    # 比較符號 (數字後需數符)
+    'COMPARISON_SIGNS': {
+        '=': '⠀⠨⠅⠀', # Equals (Space 46 13 Space)
+        '>': '⠀⠨⠂⠀', 
+        '<': '⠀⠐⠅⠀'
+    },
+    
+    # 標點與指標
     'INDICATORS': {
-        'NUMERIC': '⠼',      # Numeric Indicator (dots 3-4-5-6)
-        'FRACTION_OPEN': '⠹', # Simple Fraction Open (dots 1-4-5-6)
-        'FRACTION_CLOSE': '⠼',# Simple Fraction Close (dots 3-4-5-6)
-        'FRACTION_LINE': '⠌', # Fraction Line (dots 3-4)
-        'SUPERSCRIPT': '⠘',   # Superscript/Exponent (dots 4-5)
-        'SUBSCRIPT': '⠰',     # Subscript (dots 5-6)
-        'SPACE': ' '           # Nemeth context space
+        'NUMERIC': '⠼',
+        'SUPERSCRIPT': '⠘',   # 上標/次方 (Level Up)
+        'BASELINE': '⠐',      # 回到基線 (Level Down)
+        'SPACE': ' '
     },
     
     # 括號
     'PARENTHESES': {
-        '(': '⠷', # Open Parenthesis (dots 1-2-3-5-6)
-        ')': '⠾', # Close Parenthesis (dots 2-3-4-5-6)
-        '[': '⠨⠷',
-        ']': '⠨⠾',
-        '{': '⠸⠷',
-        '}': '⠸⠾'
+        '(': '⠷', ')': '⠾', '[': '⠨⠷', ']': '⠨⠾', '{': '⠸⠷', '}': '⠸⠾'
     },
 
-    # 模式切換指標
+    # 模式切換
     'SWITCH': {
-        'START': '⠸⠩⠀', # Begin Nemeth Code (dots 4-5-6, 1-4-6, space)
-        'END': '⠀⠸⠱'    # End Nemeth Code (space, dots 4-5-6, 1-5-6)
+        'START': '⠸⠩⠀', 
+        'END': '⠀⠸⠱'
     }
 }
